@@ -18,6 +18,7 @@ void LineDipole::initialize(const double moment,const double tilt_angle=0)
 //    q[1]=0.0;
 //    q[2]=-cos(tilt_angle)*moment;
    q[2]=moment;
+   tilt=0.261; //tilt_angle;
    center[0]=0.0;
    center[1]=0.0;
    center[2]=0.0;
@@ -46,16 +47,30 @@ double LineDipole::call( double x, double y, double z) const
 //    const double rdotq=q[0]*r[0] + q[1]*r[1] +q[2]*r[2];
    const double D = -q[2]; 
    
-   const double DerivativeSameComponent=D*( 2*r[2]*(r[2]*r[2]-3*r[0]*r[0]))/r6;
-   const double DerivativeDiffComponent=D*( 2*r[0]*(r[0]*r[0]-3*r[2]*r[2]))/r6;
+   const double X=r[0]*cos(tilt)-r[2]*sin(tilt);
+   const double Z=r[0]*sin(tilt)+r[2]*cos(tilt);
+   double R2 = X*X+Z*Z;
+   const double R6 = (R2*R2*R2);
+   const double dXdx=cos(tilt);
+   const double dXdz=-sin(tilt);
+   const double dZdx=sin(tilt);
+   const double dZdz=cos(tilt);
+   
+   //const double DerivativeSameComponent=D*( 2*Z*(Z*Z-3*X*X))/R6;
+   //const double DerivativeDiffComponent=D*( 2*X*(X*X-3*Z*Z))/R6;
+   const double dBxdX=D*( 2*Z*(Z*Z-3*X*X))/R6; //=-dBzdZ
+   const double dBxdZ=D*( 2*X*(X*X-3*Z*Z))/R6; //=dBzdX
+   const double dBzdX=D*( 2*X*(X*X-3*Z*Z))/R6;
+   const double dBzdZ=-D*(2*Z*(Z*Z-3*X*X))/R6;
+   
    //const double B;
    //const double der;
    
    if(_derivative == 0) {
       if(_fComponent == 0)
-         return D*2*r[0]*r[2]/(r2*r2);
+         return D*2*X*Z/(R2*R2);
       if(_fComponent == 2)
-         return D*(r[2]*r[2]-r[0]*r[0])/(r2*r2); 
+         return D*(Z*Z-X*X)/(R2*R2); 
       if(_fComponent == 1)
          return 0;
    }
@@ -66,14 +81,14 @@ double LineDipole::call( double x, double y, double z) const
       }
       else if(_dComponent==_fComponent) {
          if(_fComponent == 0) {
-            return DerivativeSameComponent;
+            return dBxdX*dXdx+dBxdZ*dZdx;
          }
          else if(_fComponent == 2) {
-            return -DerivativeSameComponent;
+            return dBzdX*dXdz+dBzdZ*dZdz;
          }
       }
       else { 
-         return DerivativeDiffComponent;
+         return dBzdX*dXdx+dBzdZ*dZdx; // = dBxdX*dXdz+dBxdZ*dZdz;
       }
  
    }

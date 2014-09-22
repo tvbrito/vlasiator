@@ -15,6 +15,7 @@ private:
    bool initialized;
    double q[3];                  // Dipole moment; set to (0,0,moment)
    double center[3]; // Coordinates where the dipole sits; set to (0,0,0)
+   double tilt;
 public:
   
   LineDipole(){
