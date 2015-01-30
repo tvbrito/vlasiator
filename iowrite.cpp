@@ -180,7 +180,6 @@ bool writeVelocityDistributionData(Writer& vlsvWriter,
    // Write the subarrays
    vlsvWriter.endMultiwrite("BLOCKVARIABLE", attribs);
 
-
    if (globalSuccess(success,"(MAIN) writeGrid: ERROR: Failed to fill temporary velocityBlockData array",MPI_COMM_WORLD) == false) {
       vlsvWriter.close();
       return false;

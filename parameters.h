@@ -92,7 +92,9 @@ struct Parameters {
    static Real resistivity; /*!< Resistivity in Ohm's law eta*J term. */
    static uint ohmHallTerm; /*!< Enable/choos spatial order of Hall term in Ohm's law JXB term. 0: off, 1: 1st spatial order, 2: 2nd spatial order. */
    static bool fieldSolverDiffusiveEterms; /*!< Enable resitive terms in the computation of E*/
-   
+
+   static Real f_scale;                        /**< Distribution function values are scaled by this value.*/
+   static Real f_scale_inv;                    /**< Inverse of f_scale.*/
    static Real maxSlAccelerationRotation; /*!< Maximum rotation in acceleration for semilagrangian solver*/
    static int maxSlAccelerationSubcycles; /*!< Maximum number of subcycles in acceleration*/
    static Real lorentzHallMinimumRho;  /*!< Minimum rho value used in Hall term in Lorentz force.*/

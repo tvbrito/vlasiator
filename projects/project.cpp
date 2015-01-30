@@ -148,10 +148,11 @@ namespace projects {
                   creal vyCell = vyBlock + jc*dvyCell;
                   creal vzCell = vzBlock + kc*dvzCell;
                   creal average =
-                  this->calcPhaseSpaceDensity(
-                     x, y, z, dx, dy, dz,
-                     vxCell,vyCell,vzCell,
-                     dvxCell,dvyCell,dvzCell);
+                    this->calcPhaseSpaceDensity(
+                                                x, y, z, dx, dy, dz,
+                                                vxCell,vyCell,vzCell,
+                                                dvxCell,dvyCell,dvzCell)
+                      * Parameters::f_scale;
 
                   if (average != 0.0){
                      //FIXME!!! set_value is slow as we again have to convert v -> index

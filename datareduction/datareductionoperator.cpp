@@ -503,6 +503,12 @@ namespace DRO {
             PTensor[2] += physicalconstants::MASS_PROTON * thread_nvzvz_sum;
          }
       }
+      
+      // Scale to physical units
+      PTensor[0] *= Parameters::f_scale_inv;
+      PTensor[1] *= Parameters::f_scale_inv;
+      PTensor[2] *= Parameters::f_scale_inv;
+
       const char* ptr = reinterpret_cast<const char*>(&PTensor);
       for (uint i=0; i<3*sizeof(Real); ++i) buffer[i] = ptr[i];
       return true;
@@ -569,6 +575,12 @@ namespace DRO {
             PTensor[2] += physicalconstants::MASS_PROTON * thread_nvxvy_sum;
          }
       }
+
+      // Scale to physical units
+      PTensor[0] *= Parameters::f_scale_inv;
+      PTensor[1] *= Parameters::f_scale_inv;
+      PTensor[2] *= Parameters::f_scale_inv;
+
       const char* ptr = reinterpret_cast<const char*>(&PTensor);
       for (uint i=0; i<3*sizeof(Real); ++i) buffer[i] = ptr[i];
       return true;
@@ -909,6 +921,9 @@ namespace DRO {
             rho += thread_n_sum;
          }
       }
+      
+      // Scale to physical units
+      rho *= Parameters::f_scale_inv;
       return;
    }
 
@@ -965,6 +980,9 @@ namespace DRO {
             rhoV[2] += thread_nvz_sum;
          }
       }
+      
+      // Scale to physical units
+      for (int i=0; i<3; ++i) rhoV[i] *= Parameters::f_scale_inv;
       return;
    }
 
@@ -1018,6 +1036,9 @@ namespace DRO {
             Pressure += physicalconstants::MASS_PROTON * THIRD * (thread_nvx2_sum + thread_nvy2_sum + thread_nvz2_sum);
          }
       }
+      
+      // Scale to physical units
+      Pressure *= Parameters::f_scale_inv;
    }
 
    static void PTensorDiagonalBackstreamCalculations( const SpatialCell * cell,
@@ -1069,6 +1090,9 @@ namespace DRO {
             PTensor[2] += physicalconstants::MASS_PROTON * thread_nvzvz_sum;
          }
       }
+      
+      // Scale to physical units
+      for (int i=0; i<3; ++i) PTensor[i] *= Parameters::f_scale_inv;
       return;
    }
 
@@ -1120,8 +1144,10 @@ namespace DRO {
             PTensor[2] += physicalconstants::MASS_PROTON * thread_nvxvy_sum;
          }
       }
+      
+      // Scale to physical units
+      for (int i=0; i<3; ++i) PTensor[i] *= Parameters::f_scale_inv;
    }
-
 
    // Rho backstream:
    VariableRhoBackstream::VariableRhoBackstream(): DataReductionOperator() { }

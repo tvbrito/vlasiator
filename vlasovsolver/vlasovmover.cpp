@@ -285,6 +285,15 @@ void calculateSpatialTranslation(
                CellParams::P_33_R
             );   //set second moments after translation
       }
+      
+      // Scale to physical units
+      SC->parameters[CellParams::RHO_R  ] *= Parameters::f_scale_inv;
+      SC->parameters[CellParams::RHOVX_R] *= Parameters::f_scale_inv;
+      SC->parameters[CellParams::RHOVY_R] *= Parameters::f_scale_inv;
+      SC->parameters[CellParams::RHOVZ_R] *= Parameters::f_scale_inv;
+      SC->parameters[CellParams::P_11_R ] *= Parameters::f_scale_inv;
+      SC->parameters[CellParams::P_22_R ] *= Parameters::f_scale_inv;
+      SC->parameters[CellParams::P_33_R ] *= Parameters::f_scale_inv;
    }
    phiprof::stop("compute-moments-n-maxdt");
    phiprof::stop("semilag-trans");
@@ -439,6 +448,15 @@ void calculateAcceleration(
             CellParams::P_22_V,
             CellParams::P_33_V);   //set second moments after acceleration
       }
+      
+      // Scale to physical units
+      mpiGrid[cellID]->parameters[CellParams::RHO_V  ] *= Parameters::f_scale_inv;
+      mpiGrid[cellID]->parameters[CellParams::RHOVX_V] *= Parameters::f_scale_inv;
+      mpiGrid[cellID]->parameters[CellParams::RHOVY_V] *= Parameters::f_scale_inv;
+      mpiGrid[cellID]->parameters[CellParams::RHOVZ_V] *= Parameters::f_scale_inv;
+      mpiGrid[cellID]->parameters[CellParams::P_11_V ] *= Parameters::f_scale_inv;
+      mpiGrid[cellID]->parameters[CellParams::P_22_V ] *= Parameters::f_scale_inv;
+      mpiGrid[cellID]->parameters[CellParams::P_33_V ] *= Parameters::f_scale_inv;
    }
    phiprof::stop("Compute moments");
 }
@@ -528,6 +546,15 @@ void calculateCellVelocityMoments(
          CellParams::P_33
       );
    }
+   
+   // Scale moments to physical units
+   SC->parameters[CellParams::RHO  ] *= Parameters::f_scale_inv;
+   SC->parameters[CellParams::RHOVX] *= Parameters::f_scale_inv;
+   SC->parameters[CellParams::RHOVY] *= Parameters::f_scale_inv;
+   SC->parameters[CellParams::RHOVZ] *= Parameters::f_scale_inv;
+   SC->parameters[CellParams::P_11 ] *= Parameters::f_scale_inv;
+   SC->parameters[CellParams::P_22 ] *= Parameters::f_scale_inv;
+   SC->parameters[CellParams::P_33 ] *= Parameters::f_scale_inv;
 }
 
 void calculateInitialVelocityMoments(dccrg::Dccrg<SpatialCell,dccrg::Cartesian_Geometry>& mpiGrid) {
