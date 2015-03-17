@@ -126,6 +126,9 @@ void compute_intersections_1st(const SpatialCell* spatial_cell,
       intersection_dj=intersection_0_1_0[dimension]-intersection_0_0_0[dimension];
       intersection_dk=intersection_0_0_1[dimension]-intersection_0_0_0[dimension];
    }
+   
+   // Add dimension component of acceleration due to electric field
+   intersection -= fwd_transform(3,dimension);
 }
   
 
@@ -222,6 +225,9 @@ void compute_intersections_2nd(const SpatialCell* spatial_cell,
       intersection_dj = intersect_0_1_0[dimension] - intersect_0_0_0[dimension];
       intersection_dk = intersect_0_0_1[dimension] - intersect_0_0_0[dimension];
    }
+   
+   // Add dimension component of acceleration due to electric field
+   intersection -= fwd_transform(3,dimension);
 }
 
 
@@ -306,6 +312,9 @@ void compute_intersections_3rd(const SpatialCell* spatial_cell,
           intersection_dk = point_0_0_1[dimension]-point_0_0_0[dimension];
 
    }
+   
+   // Add dimension component of acceleration due to electric field
+   intersection -= fwd_transform(3,dimension);
 }
 
 

@@ -33,11 +33,18 @@ Transform<Real,3,Affine> compute_acceleration_transformation( SpatialCell* spati
 
    
    const Eigen::Matrix<Real,3,1> B(Bx,By,Bz);
+   const Real B2 = Bx*Bx + By*By + Bz*Bz;
    const Eigen::Matrix<Real,3,1> unit_B(B.normalized());
    const Real gyro_period = 2 * M_PI * physicalconstants::MASS_PROTON  / (fabs(physicalconstants::CHARGE) * B.norm());
    
-   //Set maximum timestep limit for this cell, based on a  maximum allowed rotation angle
-   spatial_cell->parameters[CellParams::MAXVDT]=gyro_period*(P::maxSlAccelerationRotation/360.0);
+   // Set maximum timestep limit for this cell, based on a maximum allowed rotation angle.
+   // If B == 0 then B_unit and gyro_period are undefined so we need to handle 
+   // the unmagnetized plasma as a special case.
+   if (B2 > 0) {
+      spatial_cell->parameters[CellParams::MAXVDT]=gyro_period*(P::maxSlAccelerationRotation/360.0);
+   } else {
+      spatial_cell->parameters[CellParams::MAXVDT]=P::dt;
+   }
    
   //compute initial moments, based on actual distribution function
    spatial_cell->parameters[CellParams::RHO_V  ] = 0.0;
@@ -60,6 +67,21 @@ Transform<Real,3,Affine> compute_acceleration_transformation( SpatialCell* spati
                                  spatial_cell->parameters[CellParams::RHOVZ_V]/rho);   
    /*compute total transformation*/
    Transform<Real,3,Affine> total_transform(Matrix<Real, 4, 4>::Identity()); //CONTINUE
+
+   // NOTE: this needs to be q/m ratio of the particle species (not always protons)
+   const Real E_const = physicalconstants::CHARGE / physicalconstants::MASS * dt;
+   if (B2 == 0) {
+      // Add acceleration due to electric field as a translation term.
+      // NOTE: This will produce incorrect results since E(X/Y/Z)VOL contain
+      // the full electric field, and VxB terms are handled below.
+      total_transform(3,0) += E_const * spatial_cell->parameters[CellParams::EXVOL];
+      total_transform(3,1) += E_const * spatial_cell->parameters[CellParams::EYVOL];
+      total_transform(3,2) += E_const * spatial_cell->parameters[CellParams::EZVOL];
+
+      // Exit here so that we don't return NAN components if B == 0
+      // (B_unit is inf/NAN and the for-loop below produces NANs)
+      return;
+   }
 
    unsigned int bulk_velocity_substeps; /*!<in this many substeps we iterate forward bulk velocity when the complete transformation is computed (0.1 deg per substep*/
    bulk_velocity_substeps=fabs(dt)/(gyro_period*(0.1/360.0)); 
@@ -87,6 +109,12 @@ Transform<Real,3,Affine> compute_acceleration_transformation( SpatialCell* spati
       total_transform=AngleAxis<Real>(substeps_radians,unit_B)*total_transform;
       total_transform=Translation<Real,3>(rotation_pivot)*total_transform;
    }
+
+   // NOTE: This will produce incorrect results since E(X/Y/Z)VOL contain
+   // the full electric field, and VxB terms are handled below.
+   total_transform(3,0) += E_const * spatial_cell->parameters[CellParams::EXVOL];
+   total_transform(3,1) += E_const * spatial_cell->parameters[CellParams::EYVOL];
+   total_transform(3,2) += E_const * spatial_cell->parameters[CellParams::EZVOL];
 
    return total_transform;
 }
