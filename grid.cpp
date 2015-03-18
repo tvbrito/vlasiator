@@ -816,7 +816,7 @@ void invalidateRemoteData(dccrg::Dccrg<SpatialCell,dccrg::Cartesian_Geometry>& m
 
       Real* cellParams = cell->parameters;
       //for (int i=0; i<CellParams::N_SPATIAL_CELL_PARAMS; ++i) cellParams[i] = NAN;
-      for (int i=CellParams::EX; i<CellParams::N_SPATIAL_CELL_PARAMS; ++i) cellParams[i] = NAN;
+      //for (int i=CellParams::EX; i<CellParams::N_SPATIAL_CELL_PARAMS; ++i) cellParams[i] = NAN;
 
       Realf* data  = cell->get_data();
       Real* params = cell->get_block_parameters();

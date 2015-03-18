@@ -235,11 +235,17 @@ bool propagateFields(
 ) {
    // Reserve memory for derivatives for all cells on this process:
    vector<CellID> localCells = mpiGrid.get_cells();
-   
+
+   //   ***** DEBUGGING *****   //
+   const bool sorted = false;
+   const vector<CellID> remoteCells = mpiGrid.get_remote_cells_on_process_boundary(FULL_NEIGHBORHOOD_ID,sorted);
+   // ***** END DEBUGGING ***** //
+
    for (size_t cell=0; cell<localCells.size(); ++cell) {
       const CellID cellID = localCells[cell];
       mpiGrid[cellID]->parameters[CellParams::MAXFDT]=std::numeric_limits<Real>::max();
    }
+
    if(subcycles == 1) {
 # ifdef FS_1ST_ORDER_TIME
       propagateMagneticFieldSimple(mpiGrid, sysBoundaries, dt, localCells, RK_ORDER1);
@@ -249,19 +255,120 @@ bool propagateFields(
       }
       calculateUpwindedElectricFieldSimple(mpiGrid, sysBoundaries, localCells, RK_ORDER1);
 # else
+      // need: DX,DY,DZ,EX,EY,EZ
+      // calc: PERBX_DT2,PERBY_DT2,PERBZ_DT2
+      // sync CELL_PERBDT2 (SYSBOUNDARIES_EXTENDED_NEIGHBORHOOD_ID)
+      // calc PERBX_DT2,PERBY_DT2,PERBZ_DT2 (sysboundary)
+      // -> PERBX_DT2,PERBY_DT2,PERBZ_DT2 not up-to-date
       propagateMagneticFieldSimple(mpiGrid, sysBoundaries, dt, localCells, RK_ORDER2_STEP1);
+      
+      //   ***** DEBUGGING *****   //
+      #pragma omp parallel for
+      for (size_t c=0; c<remoteCells.size(); ++c) {
+         SpatialCell* cell = mpiGrid[remoteCells[c]];
+         if (cell == NULL) continue;
+         for (int i=CellParams::PERBX_DT2; i<=CellParams::PERBZ_DT2; ++i) cell->parameters[i] = NAN;
+      }
+      // ***** END DEBUGGING ***** //
+
+      // need: RHO_DT2,P_11_DT2,P_22_DT2,P_33_DT2,RHOVX_DT2,RHOVY_DT2,RHOVZ_DT2
+      //       PERBX_DT2,PERBY_DT2,PERBZ_DT2
+      // sync: CELL_PERBDT2, CELL_RHODT2_RHOVDT2, CELL_PDT2 (FIELD_SOLVER_NEIGHBORHOOD_ID)
+      // calc: drhodx,dp11dx,dp22dx,dp33dx,dVxdx,dVydx,dVzdx,dPERBydx,dPERBzdx,dPERBydxx,dPERBzdxx
+      //                        (and y/z combinations of same vars)
       calculateDerivativesSimple(mpiGrid, sysBoundaries, localCells, RK_ORDER2_STEP1, true);
-      if(P::ohmHallTerm > 0) {
+
+      //   ***** DEBUGGING *****   //
+      #pragma omp parallel for
+      for (size_t c=0; c<remoteCells.size(); ++c) {
+         SpatialCell* cell = mpiGrid[remoteCells[c]];
+         if (cell == NULL) continue;
+         for (int i=0; i<fieldsolver::N_SPATIAL_CELL_DERIVATIVES; ++i) cell->derivatives[i] = NAN;
+      }
+      // ***** END DEBUGGING ***** //
+
+      // need: derivatives,PERBX_DT2,PERBY_DT2,PERBZ_DT2,BGBX,BGBY,BGBZ,DX,DY,DZ
+      // sync: derivatives (FIELD_SOLVER_NEIGHBORHOOD_ID)
+      // calc: EXHALL_ terms
+      if (P::ohmHallTerm > 0) {
          calculateHallTermSimple(mpiGrid, sysBoundaries, localCells, RK_ORDER2_STEP1);
       }
+
+      //   ***** DEBUGGING *****   //
+      #pragma omp parallel for
+      for (size_t c=0; c<remoteCells.size(); ++c) {
+         SpatialCell* cell = mpiGrid[remoteCells[c]];
+         if (cell == NULL) continue;
+         for (int i=CellParams::EXHALL_000_100; i<=CellParams::EXHALL_011_111; ++i) cell->parameters[i] = NAN;
+         for (int i=CellParams::EX_DT2; i<=CellParams::EZ_DT2; ++i) cell->parameters[i] = NAN;
+      }
+      // ***** END DEBUGGING ***** //
+
+      // need: PERBX_DT2,PERBY_DT2,PERBZ_DT2,BGBX,BGBY,BGBZ
+      //       DX,DY,DZ,RHO_DT2,RHOVX_DT2,RHOVY_DT2,RHOVZ_DT2
+      //       derivatives
+      // sync: CELL_HALL_TERM (ohmHallTerm>0) or CELL_DERIVATIVES (ohmHallTerm==0)
+      // calc: EX_DT2,EY_DT2,EZ_DT2
+      // sync: CELL_EDT2
       calculateUpwindedElectricFieldSimple(mpiGrid, sysBoundaries, localCells, RK_ORDER2_STEP1);
-      
+
+      // need DX,DY,DZ,EX_DT2,EY_DT2,EZ_DT2
+      // calc PERBX,PERBY,PERBZ
+      // sync CELL_PERB (SYSBOUNDARIES_EXTENDED_NEIGHBORHOOD_ID)
+      // calc PERBX,PERBY,PERBZ (sysboundary)
+      // -> PERBX,PERBY,PERBZ not up-to-date
       propagateMagneticFieldSimple(mpiGrid, sysBoundaries, dt, localCells, RK_ORDER2_STEP2);
+
+      //   ***** DEBUGGING *****   //
+      #pragma omp parallel for
+      for (size_t c=0; c<remoteCells.size(); ++c) {
+         SpatialCell* cell = mpiGrid[remoteCells[c]];
+         if (cell == NULL) continue;
+         for (int i=CellParams::PERBX; i<=CellParams::PERBZ; ++i) cell->parameters[i] = NAN;
+      }
+      // ***** END DEBUGGING ***** //
+      
+      // need: RHO,P_11,P_22,P_33,RHOVX,RHOVY,RHOVZ
+      //       PERBX,PERBY,PERBZ
+      // sync CELL_PERB, CELL_RHO_RHOV, CELL_P (FIELD_SOLVER_NEIGHBORHOOD_ID)
+      // calc: drhodx,dp11dx,dp22dx,dp33dx,dVxdx,dVydx,dVzdx,dPERBydx,dPERBzdx,dPERBydxx,dPERBzdxx
+      //                        (and y/z combinations of same vars)
       calculateDerivativesSimple(mpiGrid, sysBoundaries, localCells, RK_ORDER2_STEP2, true);
-      if(P::ohmHallTerm > 0) {
+
+      //   ***** DEBUGGING *****   //
+      #pragma omp parallel for
+      for (size_t c=0; c<remoteCells.size(); ++c) {
+         SpatialCell* cell = mpiGrid[remoteCells[c]];
+         if (cell == NULL) continue;
+         for (int i=0; i<fieldsolver::N_SPATIAL_CELL_DERIVATIVES; ++i) cell->derivatives[i] = NAN;
+      }
+      // ***** END DEBUGGING ***** //
+
+      // need: derivatives,PERBX,PERBY,PERBZ,BGBX,BGBY,BGBZ,DX,DY,DZ
+      // sync: derivatives (FIELD_SOLVER_NEIGHBORHOOD_ID)
+      // calc: EXHALL_ terms
+      if (P::ohmHallTerm > 0) {
          calculateHallTermSimple(mpiGrid, sysBoundaries, localCells, RK_ORDER2_STEP2);
       }
+
+      //   ***** DEBUGGING *****   //
+      #pragma omp parallel for
+      for (size_t c=0; c<remoteCells.size(); ++c) {
+         SpatialCell* cell = mpiGrid[remoteCells[c]];
+         if (cell == NULL) continue;
+         for (int i=CellParams::EXHALL_000_100; i<=CellParams::EXHALL_011_111; ++i) cell->parameters[i] = NAN;
+         for (int i=CellParams::EX_DT2; i<=CellParams::EZ_DT2; ++i) cell->parameters[i] = NAN;
+      }
+      // ***** END DEBUGGING ***** //
+
+      // need: PERBX,PERBY,PERBZ,BGBX,BGBY,BGBZ
+      //       DX,DY,DZ,RHO,RHOVX,RHOVY,RHOVZ
+      //       derivatives
+      // sync: CELL_HALL_TERM (ohmHallTerm>0) or CELL_DERIVATIVES (ohmHallTerm==0)
+      // calc: EX,EY,EZ
+      // sync: EX,EY,EZ
       calculateUpwindedElectricFieldSimple(mpiGrid, sysBoundaries, localCells, RK_ORDER2_STEP2);
+
 # endif
    } else {
       for (uint i=0; i<subcycles; i++) {
@@ -274,7 +381,7 @@ bool propagateFields(
          calculateUpwindedElectricFieldSimple(mpiGrid, sysBoundaries, localCells, RK_ORDER1);
       }
    }
-   
+
    calculateVolumeAveragedFields(mpiGrid);
    calculateBVOLDerivativesSimple(mpiGrid, sysBoundaries, localCells);
    return true;
