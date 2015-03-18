@@ -805,6 +805,32 @@ void writeVelMesh(dccrg::Dccrg<SpatialCell,dccrg::Cartesian_Geometry>& mpiGrid) 
    ++counter;
 }
 
+void invalidateRemoteData(dccrg::Dccrg<SpatialCell,dccrg::Cartesian_Geometry>& mpiGrid) {
+   bool sorted = false;
+   vector<CellID> remoteCells = mpiGrid.get_remote_cells_on_process_boundary(FULL_NEIGHBORHOOD_ID,sorted);
+
+   #pragma omp parallel for
+   for (size_t c=0; c<remoteCells.size(); ++c) {
+      SpatialCell* cell = mpiGrid[remoteCells[c]];
+      if (cell == NULL) continue;
+
+      Real* cellParams = cell->parameters;
+      //for (int i=0; i<CellParams::N_SPATIAL_CELL_PARAMS; ++i) cellParams[i] = NAN;
+      for (int i=CellParams::EX; i<CellParams::N_SPATIAL_CELL_PARAMS; ++i) cellParams[i] = NAN;
+
+      Realf* data  = cell->get_data();
+      Real* params = cell->get_block_parameters();
+      for (vmesh::LocalID blockLID=0; blockLID<cell->get_number_of_velocity_blocks(); ++blockLID) {
+         for (int i=0; i<WID3; ++i) {
+            data[blockLID*WID3+i] = -1.0;
+         }
+         //for (int i=0; i<BlockParams::N_VELOCITY_BLOCK_PARAMS; ++i) {
+         //   params[blockLID*BlockParams::N_VELOCITY_BLOCK_PARAMS+i] = NAN;
+         //}
+      }
+   }
+}
+
 bool validateMesh(dccrg::Dccrg<SpatialCell,dccrg::Cartesian_Geometry>& mpiGrid) {
       bool rvalue = true;
       #ifndef AMR

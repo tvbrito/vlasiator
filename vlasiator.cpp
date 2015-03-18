@@ -416,14 +416,14 @@ int main(int argn,char* args[]) {
          wallTimeRestartCounter <= P::exitAfterRestarts) {
       
       addTimedBarrier("barrier-loop-start");
-      
+
       phiprof::start("IO");
-      
-      if(myRank ==  MASTER_RANK) {
+
+      if (myRank ==  MASTER_RANK) {
          // check whether STOP or KILL has been passed, should be done by MASTER_RANK only as it can reset P::bailout_write_restart
          checkExternalCommands();
       }
-      
+
       //write out phiprof profiles and logs with a lower interval than normal
       //diagnostic (every 10 diagnostic intervals).
       logFile << "---------- tstep = " << P::tstep << " t = " << P::t <<" dt = " << P::dt << " FS cycles = " << P::fieldSolverSubcycles << " ----------" << endl;
@@ -544,12 +544,12 @@ int main(int argn,char* args[]) {
       
       //get local cells
       const vector<CellID>& cells = getLocalCells();
-
+      
       //compute how many spatial cells we solve for this step
       computedCells=0;
       for(uint i=0;i<cells.size();i++)  computedCells+=mpiGrid[cells[i]]->get_number_of_velocity_blocks()*WID3;
       computedTotalCells+=computedCells;
-      
+
       //Check if dt needs to be changed, and propagate V back a half-step to change dt and set up new situation
       //do not compute new dt on first step (in restarts dt comes from file, otherwise it was initialized before we entered
       //simulation loop
@@ -568,9 +568,9 @@ int main(int argn,char* args[]) {
                //zero step to set up moments _v
                calculateAcceleration(mpiGrid, 0.0);
             }
-            
+
             P::dt=newDt;
-            
+
             logFile <<" dt changed to "<<P::dt <<"s, distribution function was half-stepped to real-time and back"<<endl<<writeVerbose;
             phiprof::stop("update-dt");
             continue; //
@@ -581,6 +581,9 @@ int main(int argn,char* args[]) {
       phiprof::start("Propagate");
       //Propagate the state of simulation forward in time by dt:
       
+      // Invalidate remote cell data (debugging)
+      invalidateRemoteData(mpiGrid);
+
       phiprof::start("Spatial-space");
       if( P::propagateVlasovTranslation) {
          calculateSpatialTranslation(mpiGrid,P::dt);
@@ -608,7 +611,7 @@ int main(int argn,char* args[]) {
          phiprof::stop("Update system boundaries (Vlasov)");
          addTimedBarrier("barrier-boundary-conditions");
       }
-      
+
       // Propagate fields forward in time by dt. This needs to be done before the
       // moments for t + dt are computed (field uses t and t+0.5dt)
       if (P::propagateField) {
@@ -654,6 +657,25 @@ int main(int argn,char* args[]) {
          string message = "The timestep went below bailout.bailout_min_dt (" + to_string(P::bailout_min_dt) + ").";
          bailout(true, message, __FILE__, __LINE__);
       }
+      
+      // ***** ADDITIONAL OUTPUT FOR DEBUGGING ***** //
+      for (uint i = 0; i < P::systemWriteTimeInterval.size(); i++) {
+         if (P::systemWriteTimeInterval[i] >= 0.0 &&
+             P::t >= P::systemWrites[i] * P::systemWriteTimeInterval[i] - DT_EPSILON) {
+            
+            phiprof::start("write-system");
+            logFile << "(IO): Writing spatial cell and reduced system data to disk, tstep = " << P::tstep << " t = " << P::t << endl << writeVerbose;
+            const bool writeGhosts = true;
+            if( writeGrid(mpiGrid,outputReducer, i, writeGhosts) == false ) {
+               cerr << "FAILED TO WRITE GRID AT" << __FILE__ << " " << __LINE__ << endl;
+            }
+            P::systemWrites[i]++;
+            logFile << "(IO): .... done!" << endl << writeVerbose;
+            phiprof::stop("write-system");
+         }
+      }
+      // ***** END DEBUGGING ***** //
+      
       //Move forward in time
       P::meshRepartitioned = false;
       ++P::tstep;
