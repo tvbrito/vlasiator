@@ -268,7 +268,7 @@ void balanceLoad(dccrg::Dccrg<SpatialCell,dccrg::Cartesian_Geometry>& mpiGrid, S
    
    /*possibly transfer cells in parts to preserve memory*/
    phiprof::start("Data transfers");
-   const uint64_t num_part_transfers=1; //1 implies all in one part -> faster
+   const uint64_t num_part_transfers = 5;
    for (uint64_t transfer_part=0; transfer_part<num_part_transfers; transfer_part++) {
       //Set transfers on/off for the incming cells in this transfer set and prepare for receive
       for (unsigned int i=0;i<incoming_cells_list.size();i++){
