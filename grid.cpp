@@ -266,9 +266,9 @@ void balanceLoad(dccrg::Dccrg<SpatialCell,dccrg::Cartesian_Geometry>& mpiGrid, S
    const std::unordered_set<uint64_t>& outgoing_cells = mpiGrid.get_cells_removed_by_balance_load();
    std::vector<uint64_t> outgoing_cells_list (outgoing_cells.begin(),outgoing_cells.end()); 
    
-   /*possibly transfer cells in parts to preserve memory*/
+   /*transfer cells in parts to preserve memory*/
    phiprof::start("Data transfers");
-   const uint64_t num_part_transfers=1; //1 implies all in one part -> faster
+   const uint64_t num_part_transfers=5;
    for (uint64_t transfer_part=0; transfer_part<num_part_transfers; transfer_part++) {
       //Set transfers on/off for the incming cells in this transfer set and prepare for receive
       for (unsigned int i=0;i<incoming_cells_list.size();i++){
@@ -298,7 +298,6 @@ void balanceLoad(dccrg::Dccrg<SpatialCell,dccrg::Cartesian_Geometry>& mpiGrid, S
       SpatialCell::set_mpi_transfer_type(Transfer::VEL_BLOCK_LIST_STAGE2);
       mpiGrid.continue_balance_load();
       
-#pragma omp parallel for
       for (unsigned int i=0; i<incoming_cells_list.size(); i++) {
          uint64_t cell_id=incoming_cells_list[i];
          SpatialCell* cell = mpiGrid[cell_id];
@@ -317,7 +316,6 @@ void balanceLoad(dccrg::Dccrg<SpatialCell,dccrg::Cartesian_Geometry>& mpiGrid, S
       phiprof::stop("transfer_all_data");
       
       //Free memory for cells that have been sent (the blockdata)
-#pragma omp parallel for                                                                                                                                                                                                                                                                 
       for (unsigned int i=0;i<outgoing_cells_list.size();i++){
          uint64_t cell_id=outgoing_cells_list[i];
          SpatialCell* cell = mpiGrid[cell_id];
@@ -522,9 +520,8 @@ void report_grid_memory_consumption(dccrg::Dccrg<SpatialCell,dccrg::Cartesian_Ge
 void deallocateRemoteCellBlocks(dccrg::Dccrg<SpatialCell,dccrg::Cartesian_Geometry>& mpiGrid) {
    const std::vector<uint64_t> incoming_cells
       = mpiGrid.get_remote_cells_on_process_boundary(VLASOV_SOLVER_NEIGHBORHOOD_ID);
-#pragma omp parallel for
    for(unsigned int i=0;i<incoming_cells.size();i++){
-     uint64_t cell_id=incoming_cells[i];
+      uint64_t cell_id=incoming_cells[i];
       SpatialCell* cell = mpiGrid[cell_id];
       if (cell != NULL) {
          cell->clear();
