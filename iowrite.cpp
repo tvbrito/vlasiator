@@ -1025,8 +1025,8 @@ bool writeDiagnostic(const dccrg::Dccrg<SpatialCell,dccrg::Cartesian_Geometry>& 
    // Exit if the user does not want any diagnostics output
    if (nOps == 0) return true;
 
-   vector<Real> localMin(nOps), localMax(nOps), localSum(nOps+1), localAvg(nOps),
-               globalMin(nOps),globalMax(nOps),globalSum(nOps+1),globalAvg(nOps);
+   vector<Real> localMin(nOps), localMax(nOps), localSum(nOps+1),
+               globalMin(nOps),globalMax(nOps),globalSum(nOps+1);
    localSum[0] = 1.0 * nCells;
    Real buffer;
    bool success = true;
@@ -1044,51 +1044,55 @@ bool writeDiagnostic(const dccrg::Dccrg<SpatialCell,dccrg::Cartesian_Geometry>& 
       }
       printDiagnosticHeader = false;
    }
-   
-   for (uint i=0; i<nOps; ++i) {
-      
+
+   for (uint i=0; i<nOps; ++i) {     
       if (dataReducer.getDataVectorInfo(i,dataType,dataSize,vectorSize) == false) {
          cerr << "ERROR when requesting info from diagnostic DRO " << dataReducer.getName(i) << endl;
       }
-      localMin[i] = std::numeric_limits<Real>::max();
-      localMax[i] = std::numeric_limits<Real>::min();
-      localSum[i+1] = 0.0;
       buffer = 0.0;
+      Real minVal =  std::numeric_limits<Real>::max();
+      Real maxVal = std::numeric_limits<Real>::min();
+      Real sum=0.0;
       
       // Request DataReductionOperator to calculate the reduced data for all local cells:
+#pragma omp parallel for schedule(dynamic) reduction(+:sum) reduction(min:minVal) reduction(max:maxVal)
       for (uint64_t cell=0; cell<nCells; ++cell) {
          success = true;
          if (dataReducer.reduceData(mpiGrid[cells[cell]], i, &buffer) == false) success = false;
-         localMin[i] = min(buffer, localMin[i]);
-         localMax[i] = max(buffer, localMax[i]);
-         localSum[i+1] += buffer;
+         minVal = min(buffer, minVal);
+         maxVal = max(buffer, maxVal);
+         sum += buffer;
       }
-      localAvg[i] = localSum[i+1];
-      
+      localMin[i] = minVal;
+      localMax[i] = maxVal;
+      localSum[i] = sum;
       if (success == false) logFile << "(MAIN) writeDiagnostic: ERROR datareductionoperator '" << dataReducer.getName(i) <<
                                "' returned false!" << endl << writeVerbose;
    }
+
    
+   localSum[nOps] = nCells; //final reduction for the amount of cells as last element
    MPI_Reduce(&localMin[0], &globalMin[0], nOps, MPI_Type<Real>(), MPI_MIN, 0, MPI_COMM_WORLD);
    MPI_Reduce(&localMax[0], &globalMax[0], nOps, MPI_Type<Real>(), MPI_MAX, 0, MPI_COMM_WORLD);
    MPI_Reduce(&localSum[0], &globalSum[0], nOps + 1, MPI_Type<Real>(), MPI_SUM, 0, MPI_COMM_WORLD);
    
-   diagnostic << setprecision(12); 
-   diagnostic << Parameters::tstep << "\t";
-   diagnostic << Parameters::t << "\t";
-   diagnostic << Parameters::dt << "\t";
    
-   for (uint i=0; i<nOps; ++i) {
-      if (globalSum[0] != 0.0) globalAvg[i] = globalSum[i+1] / globalSum[0];
-      else globalAvg[i] = globalSum[i+1];
-      if (myRank == MASTER_RANK) {
-         diagnostic << globalMin[i] << "\t" <<
+   if (myRank == MASTER_RANK) {
+     if(globalSum[nOps]<1.0) 
+       globalSum[nOps] = 1.0; // guard agains zero cells in total (makes little sense of course).
+     diagnostic << setprecision(12); 
+     diagnostic << Parameters::tstep << "\t";
+     diagnostic << Parameters::t << "\t";
+     diagnostic << Parameters::dt << "\t";
+     for (uint i=0; i<nOps; ++i) {
+       diagnostic << globalMin[i] << "\t" <<
          globalMax[i] << "\t" <<
-         globalSum[i+1] << "\t" <<
-         globalAvg[i] << "\t";
+         globalSum[i] << "\t" <<
+         globalSum[i]/globalSum[nOps] << "\t";
       }
+     diagnostic << endl << write;
    }
-   if (myRank == MASTER_RANK) diagnostic << endl << write;
+
    return true;
 }
 
