@@ -83,7 +83,7 @@ void createTargetGrid(dccrg::Dccrg<SpatialCell,dccrg::Cartesian_Geometry>& mpiGr
 //Clear temporary target grid  for all cells in cells vector.
 void clearTargetGrid(dccrg::Dccrg<SpatialCell,dccrg::Cartesian_Geometry>& mpiGrid,   const vector<CellID>& cells){
    phiprof::start("clear-target-grid");
-#pragma omp  parallel for schedule(dynamic)
+#pragma omp  parallel for
    for (size_t c=0; c<cells.size(); ++c) {
       SpatialCell *spatial_cell = mpiGrid[cells[c]];
       spatial_cell->get_velocity_mesh_temporary().clear();
@@ -97,7 +97,7 @@ void clearTargetGrid(dccrg::Dccrg<SpatialCell,dccrg::Cartesian_Geometry>& mpiGri
 //Set all values in the temporary target grid to zero (0.0), for all cells in cells vector.   
 void zeroTargetGrid(dccrg::Dccrg<SpatialCell,dccrg::Cartesian_Geometry>& mpiGrid,   const vector<CellID>& cells){
    phiprof::start("zero-target-grid");      
-#pragma omp  parallel for schedule(dynamic)
+#pragma omp  parallel for
    for (size_t c=0; c<cells.size(); ++c) {
       SpatialCell *spatial_cell = mpiGrid[cells[c]];
       vmesh::VelocityBlockContainer<vmesh::LocalID>& blockContainer = spatial_cell->get_velocity_blocks_temporary();
