@@ -46,7 +46,7 @@ COMPFLAGS += -DNDEBUG
 #  TRANS_SEMILAG_PLM 	2nd order	
 #  TRANS_SEMILAG_PPM	3rd order (for production use, use unless testing)
 #  TRANS_SEMILAG_PQM	5th order (significantly slower due to larger stencil)
-COMPFLAGS += -DACC_SEMILAG_PLM -DTRANS_SEMILAG_PLM 
+COMPFLAGS += -DACC_SEMILAG_PQM -DTRANS_SEMILAG_PPM 
 
 #Add -DCATCH_FPE to catch floating point exceptions and stop execution
 #May cause problems
@@ -190,8 +190,9 @@ OBJS = 	version.o memoryallocation.o backgroundfield.o quadr.o dipole.o linedipo
 	donotcompute.o ionosphere.o outflow.o setbyuser.o setmaxwellian.o\
 	sysboundary.o sysboundarycondition.o particle_species.o\
 	project.o projectTriAxisSearch.o read_gaussian_population.o\
-	Alfven.o Diffusion.o Dispersion.o Distributions.o ElVentana.o Firehose.o Flowthrough.o Fluctuations.o Harris.o KHB.o \
-        Larmor.o Magnetosphere.o MultiPeak.o VelocityBox.o Riemann1.o Shock.o Template.o test_fp.o testAmr.o testHall.o test_trans.o \
+	Alfven.o Diffusion.o Dispersion.o Distributions.o ElVentana.o Firehose.o\
+	Flowthrough.o Fluctuations.o Harris.o KHB.o Larmor.o Magnetosphere.o MultiPeak.o\
+	VelocityBox.o Riemann1.o Shock.o Template.o test_fp.o testAmr.o testHall.o test_trans.o\
 	IPShock.o object_wrapper.o\
 	verificationLarmor.o Shocktest.o grid.o ioread.o iowrite.o vlasiator.o logger.o\
 	common.o parameters.o readparameters.o spatial_cell.o mesh_data_container.o\
